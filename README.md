@@ -3,11 +3,13 @@
 > **Adversarial Safe-Corridor Navigation & Contingency Routing System**  
 > *Target Test Corridor: GMCH Trauma Center → Medical Square → Manewada Ring Road (Nagpur, Maharashtra)*
 
+[![Deployed on Vercel](https://img.shields.io/badge/Deployed_on-Vercel-black?style=for-the-badge&logo=vercel&logoColor=white)](https://night-shift-delta.vercel.app)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-night--shift--delta.vercel.app-0070F3?style=for-the-badge&logo=vercel&logoColor=white)](https://night-shift-delta.vercel.app)
+[![Verification Status](https://img.shields.io/badge/FAROS_Engine-8%2F8_Tests_Passing-10B981?style=for-the-badge)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
-[![Verification Status](https://img.shields.io/badge/FAROS_Engine-8%2F8_Tests_Passing-10B981?style=for-the-badge)]()
 
 ---
 
@@ -19,6 +21,16 @@ Standard consumer navigation platforms (Google Maps, Apple Maps) optimize for **
 3. **Unlit Shortcut Traps**: Routing through unmonitored cuts saves 2–3 minutes but exposes pedestrians to 800m+ dark stretches without audited refuges.
 
 **NightShift** solves this with **FAROS** (*Fault-tolerant Adversarial Routing with Offline Sanctuary*), an autonomous algorithmic engine that treats night navigation as a minimax game against compound city disruptions.
+
+---
+
+## 🌐 Live Production Deployment
+
+The project is deployed and actively hosted on **Vercel** with continuous integration:
+* **Production URL**: [https://night-shift-delta.vercel.app](https://night-shift-delta.vercel.app)
+* **Mobile Ready**: Fully optimized for mobile browsers (iOS Safari & Android Chrome) with safe GPS geolocation, responsive touch layout, and PWA capability.
+* **HTTPS Security**: Full SSL encryption enabling secure browser geolocation APIs without warnings.
+* **Deployment Config**: Automated via [`vercel.json`](./vercel.json) with SPA fallback routing and security headers.
 
 ---
 
