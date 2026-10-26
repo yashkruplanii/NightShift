@@ -10,8 +10,10 @@ import { ScenarioValidationModal } from './components/ScenarioValidationModal';
 import { OfficialGovRegistryModal, GovTabType } from './components/OfficialGovRegistryModal';
 import { LogoIntroSplash } from './components/LogoIntroSplash';
 import { CityConditionsBar } from './components/CityConditionsBar';
-import { executeFAROS, TravelMode } from './engine/faros_router';
+import { NavigationBanner } from './components/NavigationBanner';
+import { executeFAROS, findNearestSafeHaven, TravelMode } from './engine/faros_router';
 import { NAGPUR_SAFE_HAVENS, SafeHaven } from './data/nagpur_ground_truth';
+import { fetchRealRoadRoute, fetchMultiPointRoadRoute, RouteStep } from './services/realRoadRouter';
 import { Navigation2, Globe } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -139,21 +141,52 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  // Compute FAROS decisions dynamically based on real user coordinates when destination is selected!
-  const farosResult = (destCoords && destName) 
-    ? executeFAROS({
-        busCancelled: isBusCancelled,
-        networkSevered: isNetworkSevered,
-        underpassFlooded: isUnderpassFlooded,
-        manualClockMinutes: activeClockMinutes,
-        originCoords,
-        originName,
-        destCoords,
-        destName,
-        deadlineTimeStr,
-        travelMode
-      })
-    : {
+  // Real-road geometry state (fetched asynchronously from OSRM / OpenStreetMap)
+  const [roadGeometry, setRoadGeometry] = useState<{
+    recommendedCoords?: [number, number][];
+    backupCoords?: [number, number][];
+    turnSteps?: RouteStep[];
+    roadDistanceMeters?: number;
+    durationMinutes?: number;
+  } | null>(null);
+
+  // Asynchronously resolve genuine road-network geometry whenever origin, destination, or mode changes
+  useEffect(() => {
+    if (!destCoords || !destName) {
+      setRoadGeometry(null);
+      return;
+    }
+
+    let isCancelled = false;
+    const nearestHaven = findNearestSafeHaven(originCoords, NAGPUR_SAFE_HAVENS);
+    const havenCoord: [number, number] = [nearestHaven.lat, nearestHaven.lon];
+
+    Promise.all([
+      fetchRealRoadRoute(originCoords, destCoords, travelMode),
+      fetchMultiPointRoadRoute([originCoords, havenCoord, destCoords], travelMode)
+    ]).then(([primaryRes, backupRes]) => {
+      if (!isCancelled) {
+        setRoadGeometry({
+          recommendedCoords: primaryRes.coordinates,
+          backupCoords: backupRes.coordinates,
+          turnSteps: primaryRes.steps,
+          roadDistanceMeters: primaryRes.distanceMeters,
+          durationMinutes: primaryRes.durationMinutes
+        });
+      }
+    }).catch((err) => {
+      console.warn("Real road geometry resolution error:", err);
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [originCoords[0], originCoords[1], destCoords?.[0], destCoords?.[1], destName, travelMode]);
+
+  // Compute FAROS decisions dynamically based on real user coordinates and enriched with road geometry!
+  const farosResult = React.useMemo(() => {
+    if (!destCoords || !destName) {
+      return {
         recommendedPlan: null,
         backupPlan: null,
         candidatePlans: [],
@@ -165,6 +198,60 @@ export const App: React.FC = () => {
         workerName: 'Verified Commuter',
         summary: 'Select destination to compute adversarial safe corridors'
       };
+    }
+
+    const baseResult = executeFAROS({
+      busCancelled: isBusCancelled,
+      networkSevered: isNetworkSevered,
+      underpassFlooded: isUnderpassFlooded,
+      manualClockMinutes: activeClockMinutes,
+      originCoords,
+      originName,
+      destCoords,
+      destName,
+      deadlineTimeStr,
+      travelMode
+    });
+
+    // Enhance route plans with authentic street-accurate road geometry & turn maneuvers
+    if (roadGeometry) {
+      if (baseResult.recommendedPlan && roadGeometry.recommendedCoords) {
+        baseResult.recommendedPlan = {
+          ...baseResult.recommendedPlan,
+          turnSteps: roadGeometry.turnSteps,
+          segments: baseResult.recommendedPlan.segments.map(seg => ({
+            ...seg,
+            coordinates: roadGeometry.recommendedCoords!,
+            distanceMeters: roadGeometry.roadDistanceMeters || seg.distanceMeters
+          }))
+        };
+      }
+      if (baseResult.backupPlan && roadGeometry.backupCoords) {
+        baseResult.backupPlan = {
+          ...baseResult.backupPlan,
+          segments: baseResult.backupPlan.segments.map(seg => ({
+            ...seg,
+            coordinates: roadGeometry.backupCoords!
+          }))
+        };
+      }
+    }
+
+    return baseResult;
+  }, [
+    destCoords,
+    destName,
+    originCoords,
+    originName,
+    isBusCancelled,
+    isNetworkSevered,
+    isUnderpassFlooded,
+    activeClockMinutes,
+    deadlineTimeStr,
+    travelMode,
+    activeDepartureTimeStr,
+    roadGeometry
+  ]);
 
   // Keep selected plan valid when mode, destination, or disruptions change
   useEffect(() => {
@@ -173,7 +260,7 @@ export const App: React.FC = () => {
     } else if (farosResult.backupPlan) {
       setSelectedPlanId(farosResult.backupPlan.id);
     }
-  }, [isBusCancelled, isUnderpassFlooded, destName, travelMode]);
+  }, [isBusCancelled, isUnderpassFlooded, destName, travelMode, farosResult]);
 
   // Soft navigation start transition with audio chime
   const handleStartNavigation = () => {
@@ -271,6 +358,15 @@ export const App: React.FC = () => {
           setIsGovRegistryOpen(true);
         }}
       />
+
+      {/* Real-time Turn-By-Turn Navigation Banner (Identical to Apple Maps / Google Maps) */}
+      {isNavigating && activePlan && destName && (
+        <NavigationBanner
+          activePlan={activePlan}
+          destName={destName}
+          onEndNavigation={() => setIsNavigating(false)}
+        />
+      )}
 
       {/* Real-time GPS Notification Toast */}
       {gpsToastMessage && (

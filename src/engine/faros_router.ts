@@ -17,6 +17,11 @@ import {
   isDeadlineSatisfied
 } from './time_expanded_graph';
 
+import {
+  generateNagpurArterialCorridor,
+  RouteStep
+} from '../services/realRoadRouter';
+
 export type TravelMode = 'two_wheeler' | 'four_wheeler' | 'transit' | 'walking';
 
 export interface DisruptionState {
@@ -62,6 +67,7 @@ export interface RoutePlan {
   objectiveCost: number;
   epistemicTrust: DecayEvaluation;
   etaBreakdown?: ETAMultiFactorBreakdown;
+  turnSteps?: RouteStep[];
   recoveryPolicy?: {
     trigger: string;
     action: string;
@@ -136,12 +142,19 @@ export function findNearestSafeHaven(coord: [number, number], havens: SafeHaven[
   return nearest;
 }
 
-// Interpolate waypoints between two coordinates for smooth road tracking
+// Generate realistic road network coordinates using Nagpur arterial highway spine
 function interpolateCoordinates(start: [number, number], end: [number, number], steps: number = 5): [number, number][] {
+  try {
+    const arterialCoords = generateNagpurArterialCorridor(start, end);
+    if (arterialCoords && arterialCoords.length >= 2) {
+      return arterialCoords;
+    }
+  } catch (e) {
+    // Fallback if ever needed
+  }
   const points: [number, number][] = [];
   for (let i = 0; i <= steps; i++) {
     const fraction = i / steps;
-    // Add natural road bending curve
     const curveOffset = Math.sin(fraction * Math.PI) * 0.0018;
     const lat = Number((start[0] + (end[0] - start[0]) * fraction + curveOffset).toFixed(5));
     const lon = Number((start[1] + (end[1] - start[1]) * fraction).toFixed(5));

@@ -143,43 +143,59 @@ export const MapView: React.FC<MapViewProps> = ({
       marker.addTo(group);
     });
 
-    // 2. Draw Pre-Calculated Backup Route (Dashed Amber)
+    // 2. Draw Pre-Calculated Backup Route via Safe Haven (Dashed Amber with Dark Casing)
     if (backupPlan) {
       backupPlan.segments.forEach((seg) => {
-        const backupLine = L.polyline(seg.coordinates, {
-          color: '#FF9500',
-          weight: 4,
-          dashArray: '8, 6',
-          opacity: 0.85
+        // Underlay Road Casing
+        const casing = L.polyline(seg.coordinates, {
+          color: '#1C1917',
+          weight: 7,
+          opacity: 0.65
         });
-        backupLine.bindTooltip(`<b>Backup Plan</b>: ${seg.name}`, { direction: 'top' });
+        casing.addTo(group);
+
+        const backupLine = L.polyline(seg.coordinates, {
+          color: '#F59E0B',
+          weight: 4.5,
+          dashArray: '7, 7',
+          opacity: 0.95
+        });
+        backupLine.bindTooltip(`<b>Armed Backup Route (via Safe Haven)</b><br/>${seg.name}`, { direction: 'top' });
         backupLine.addTo(group);
       });
     }
 
-    // 3. Draw Active Route Polylines (Directly connecting Origin to Destination!)
+    // 3. Draw Active Route Polylines (Real Road Casing + Glow + Core Highway Polyline)
     if (selectedPlan) {
       selectedPlan.segments.forEach((seg) => {
         const isTransit = seg.mode === 'bus';
 
-        // Outer Glow line
+        // Underlay Road Casing (Crisp border just like Google & Apple Maps)
+        const casing = L.polyline(seg.coordinates, {
+          color: '#030712',
+          weight: isNavigating ? 10 : 8,
+          opacity: 0.85
+        });
+        casing.addTo(group);
+
+        // Ambient Road Glow
         const glow = L.polyline(seg.coordinates, {
           color: isTransit ? '#007AFF' : '#00F0FF',
-          weight: isNavigating ? 14 : 10,
-          opacity: isNavigating ? 0.5 : 0.35,
+          weight: isNavigating ? 15 : 12,
+          opacity: isNavigating ? 0.45 : 0.3,
           className: isNavigating ? (isTransit ? 'leaflet-animated-transit-route' : 'leaflet-animated-route') : undefined
         });
         glow.addTo(group);
 
         // Core Route line
         const line = L.polyline(seg.coordinates, {
-          color: isTransit ? '#007AFF' : '#38BDF8',
+          color: isTransit ? '#007AFF' : '#007AFF',
           weight: isNavigating ? 6 : 5,
-          dashArray: isNavigating ? (isTransit ? '16, 8' : '12, 10') : (isTransit ? '10, 5' : undefined),
-          opacity: 0.98,
+          dashArray: isNavigating ? (isTransit ? '16, 8' : '12, 10') : undefined,
+          opacity: 1.0,
           className: isNavigating ? (isTransit ? 'leaflet-animated-transit-route' : 'leaflet-animated-route') : undefined
         });
-        line.bindTooltip(`<b>${seg.name}</b><br/>${seg.distanceMeters}m · ${seg.lit ? '✓ 100% Lit' : '⚠️ Unlit'}`, {
+        line.bindTooltip(`<b>${seg.name}</b><br/>${(seg.distanceMeters / 1000).toFixed(1)} km · ${seg.lit ? '✓ 100% Lit Highway' : '⚠️ Unlit'}`, {
           direction: 'top'
         });
         line.addTo(group);

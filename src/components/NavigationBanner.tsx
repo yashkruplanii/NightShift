@@ -22,11 +22,16 @@ export const NavigationBanner: React.FC<NavigationBannerProps> = ({
   destName,
   onEndNavigation
 }) => {
-  const currentStep = activePlan.segments[0] || {
-    name: "Proceed along illuminated arterial road",
-    distanceMeters: 350,
-    minutes: 4.5,
-    lit: true
+  const turnStep = activePlan.turnSteps?.[0] || activePlan.turnSteps?.[1];
+  const stepInstruction = turnStep ? turnStep.instruction : (activePlan.segments[0]?.name || "Proceed along illuminated arterial road");
+  const stepDistance = turnStep ? turnStep.distanceMeters : (activePlan.segments[0]?.distanceMeters || 350);
+  const nextStep = activePlan.turnSteps?.[1];
+
+  const renderManeuverIcon = () => {
+    const mod = turnStep?.modifier || '';
+    if (mod.includes('left')) return <CornerUpLeft className="w-7 h-7 text-white" />;
+    if (mod.includes('right')) return <CornerUpRight className="w-7 h-7 text-white" />;
+    return <ArrowUp className="w-7 h-7 text-white" />;
   };
 
   return (
@@ -35,7 +40,7 @@ export const NavigationBanner: React.FC<NavigationBannerProps> = ({
         {/* Left: Turn Direction & Street Name */}
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0 border border-white/30 shadow-inner">
-            <CornerUpRight className="w-7 h-7 text-white" />
+            {renderManeuverIcon()}
           </div>
 
           <div>
@@ -46,17 +51,22 @@ export const NavigationBanner: React.FC<NavigationBannerProps> = ({
                 {activePlan.travelMode === 'walking' && '🚶 Walking'}
                 {(!activePlan.travelMode || activePlan.travelMode === 'transit') && '🚌 Night Transit'}
               </span>
-              <span>In {currentStep.distanceMeters} meters</span>
+              <span>In {stepDistance} meters</span>
               <span className="w-1 h-1 rounded-full bg-white/50" />
               <span className="text-[#34C759] font-extrabold bg-black/20 px-2 py-0.5 rounded-full text-[10px]">
                 ✓ 100% Illuminated
               </span>
             </div>
             <h2 className="text-lg sm:text-xl font-bold tracking-tight text-white leading-tight">
-              {currentStep.name}
+              {stepInstruction}
             </h2>
-            <div className="text-xs text-white/80 mt-0.5">
-              Heading to: <span className="font-semibold text-white">{destName.split(' (')[0]}</span>
+            <div className="text-xs text-white/80 mt-0.5 flex items-center gap-2">
+              <span>Heading to: <strong className="text-white font-semibold">{destName.split(' (')[0]}</strong></span>
+              {nextStep && (
+                <span className="hidden sm:inline text-white/70">
+                  • Next: {nextStep.instruction}
+                </span>
+              )}
             </div>
           </div>
         </div>
