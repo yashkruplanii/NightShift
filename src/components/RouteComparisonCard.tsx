@@ -38,6 +38,7 @@ export const RouteComparisonCard: React.FC<RouteComparisonCardProps> = ({
   isNavigating
 }) => {
   // Candidate plans for the active vehicle
+  const isWalking = selectedMode === 'walking';
   const candidates: { plan: RoutePlan | null; label: string; badge: string; desc: string }[] = [
     { 
       plan: recommendedPlan, 
@@ -47,9 +48,11 @@ export const RouteComparisonCard: React.FC<RouteComparisonCardProps> = ({
     },
     { 
       plan: backupPlan, 
-      label: "Standby Contingency", 
+      label: isWalking ? "Emergency Cab" : "Safe Haven Detour", 
       badge: "Armed Backup", 
-      desc: "Pre-planned standby if vehicle or transit encounters disruption" 
+      desc: isWalking
+        ? "Fast motorized cab standby dispatched from 24/7 safe haven if pedestrian path is compromised"
+        : "Pre-planned standby if vehicle or transit encounters disruption" 
     }
   ];
 
@@ -124,14 +127,23 @@ export const RouteComparisonCard: React.FC<RouteComparisonCardProps> = ({
             <button
               key={item.plan.id || idx}
               onClick={() => onSelectPlan(item.plan!)}
-              className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 ${
+              className={`flex-1 py-2.5 px-2.5 sm:px-3 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer flex items-center justify-between gap-1.5 ${
                 isSelected
                   ? 'bg-white/15 text-white shadow-[0_2px_12px_rgba(0,0,0,0.4)] border border-white/20'
                   : 'text-white/50 hover:text-white/80 hover:bg-white/[0.04]'
               }`}
             >
-              <span>{item.label}</span>
-              <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${
+              <div className="flex items-center gap-1.5 truncate">
+                <span className="truncate">{item.label}</span>
+                {item.plan.durationHuman && (
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                    isSelected ? 'bg-white/20 text-white' : 'bg-white/5 text-white/60'
+                  }`}>
+                    {item.plan.durationHuman}
+                  </span>
+                )}
+              </div>
+              <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold shrink-0 ${
                 item.badge === 'Recommended' 
                   ? 'bg-[#34C759]/20 text-[#34C759] border border-[#34C759]/30' 
                   : 'bg-[#FF9500]/20 text-[#FF9500] border border-[#FF9500]/30'
@@ -142,6 +154,24 @@ export const RouteComparisonCard: React.FC<RouteComparisonCardProps> = ({
           );
         })}
       </div>
+
+      {/* Explanation Banner when Armed Backup is Selected */}
+      {activePlan.id === backupPlan?.id && (
+        <div className="mb-4 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-start gap-2 text-xs">
+          <span className="text-amber-400 font-bold shrink-0 mt-0.5">⚡</span>
+          <div className="text-white/80 text-[11px] leading-relaxed">
+            {isWalking ? (
+              <span>
+                <strong className="text-amber-300">Armed Backup Activated:</strong> Pedestrian walk to {activePlan.name.split(' to ')[1] || 'destination'} takes ~6 hours. Emergency motorized cab standby is staged at the 24/7 safe haven, arriving in <strong>{activePlan.durationHuman}</strong>.
+              </span>
+            ) : (
+              <span>
+                <strong className="text-amber-300">Armed Backup Activated:</strong> Monitored detour routed through 24/7 verified police / hospital sanctuary before reaching destination (<strong>{activePlan.durationHuman}</strong> total).
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Hero Arrival Stats */}
       <div className="flex items-start justify-between gap-4 pb-4 border-b border-white/[0.08]">

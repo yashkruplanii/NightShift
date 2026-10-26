@@ -309,23 +309,35 @@ export function executeFAROS(state: DisruptionState): FAROSDecisionOutput {
   const c2Leg1Coords = interpolateCoordinates(originCoords, originHavenCoord, 4);
   const c2Leg2Coords = interpolateCoordinates(originHavenCoord, destCoords, 6);
 
-  const c2WalkMeters = Math.min(1000, haversineDistanceMeters(originCoords, originHavenCoord));
+  const c2WalkMeters = Math.min(800, haversineDistanceMeters(originCoords, originHavenCoord));
   const c2WalkMinutes = Number(((c2WalkMeters / 1000) / 4.5 * 60).toFixed(1));
 
   const c2RideMeters = Math.max(1500, haversineDistanceMeters(originHavenCoord, destCoords));
-  const c2RideMinutes = Number(((c2RideMeters / 1000) / 34 * 60).toFixed(1)); // 34 km/h auto
+  // Mode-aware contingency speed: vehicular detour (50-54 km/h) or emergency cab standby (48 km/h)
+  const c2SpeedKmh = state.travelMode === 'four_wheeler' ? 50 : state.travelMode === 'two_wheeler' ? 54 : 48;
+  const c2RideMinutes = Number(((c2RideMeters / 1000) / c2SpeedKmh * 60).toFixed(1));
 
-  const c2TotalMinutes = Math.round(c2WalkMinutes + 3.0 + c2RideMinutes);
+  const c2TotalMinutes = Math.round(c2WalkMinutes + 2.0 + c2RideMinutes);
   const c2ArrivalMin = departureMin + c2TotalMinutes;
   const c2DeadlineMet = isDeadlineSatisfied(c2ArrivalMin, deadlineMin);
 
+  const isWalkerMode = state.travelMode === 'walking';
+  const backupPlanName = isWalkerMode 
+    ? `Emergency Cab Standby via ${nearestOriginHaven.name.split(' (')[0]}`
+    : `${state.travelMode === 'four_wheeler' ? '4-Wheeler' : '2-Wheeler'} via ${nearestOriginHaven.name.split(' (')[0]} Detour`;
+  const backupVehicleLabel = isWalkerMode 
+    ? 'Emergency Cab Standby' 
+    : `${state.travelMode === 'four_wheeler' ? '4-Wheeler' : '2-Wheeler'} (Haven Detour)`;
+
   const backupPlan: RoutePlan = {
     id: "plan_ajni_contingency",
-    name: `Backup Plan: ${nearestOriginHaven.name.split(' (')[0]} & Monitored Auto`,
+    name: backupPlanName,
     badge: (c2DeadlineMet && !c1Feasible) ? "RECOMMENDED" : "FEASIBLE_BACKUP",
-    summary: `Pre-calculated recovery route. Guided through high-lux corridor directly to 24/7 ${nearestOriginHaven.name.split(' (')[0]} and pre-paid auto-rickshaw stand.`,
-    travelMode: 'transit',
-    vehicleLabel: 'Backup Plan (Monitored Auto)',
+    summary: isWalkerMode
+      ? `Pedestrian emergency protocol: Guided along lit path to 24/7 ${nearestOriginHaven.name.split(' (')[0]} where an emergency motorized cab standby conveys you safely to destination.`
+      : `Pre-calculated safety detour passing through 24/7 ${nearestOriginHaven.name.split(' (')[0]} before continuing to destination.`,
+    travelMode: state.travelMode || 'transit',
+    vehicleLabel: backupVehicleLabel,
     departureTimeStr: formatMinutesToTime(departureMin),
     arrivalTimeStr: formatMinutesToTime(c2ArrivalMin),
     durationMinutes: c2TotalMinutes,
@@ -377,7 +389,7 @@ export function executeFAROS(state: DisruptionState): FAROSDecisionOutput {
   // CANDIDATE 4: 2-Wheeler (Motorcycle / Scooter)
   // Direct High-Lux Arterial Route via Illuminated Main Avenues
   // -------------------------------------------------------------
-  const twoWheelerSpeedKmh = 38; // 38 km/h agile night riding
+  const twoWheelerSpeedKmh = 56; // 56 km/h agile night riding on arterial highway
   const twoWheelerMins = Math.max(3, Math.round((roadMeters / 1000) / twoWheelerSpeedKmh * 60));
   const twoWheelerArrivalMin = departureMin + twoWheelerMins;
   const twoWheelerFeasible = isDeadlineSatisfied(twoWheelerArrivalMin, deadlineMin);
@@ -390,7 +402,7 @@ export function executeFAROS(state: DisruptionState): FAROSDecisionOutput {
     id: "plan_two_wheeler",
     name: `2-Wheeler Lit Route to ${destName.split(' (')[0]}`,
     badge: twoWheelerFeasible ? "RECOMMENDED" : "REJECTED_DEADLINE_BREACH",
-    summary: `Fastest personal transit (${twoWheelerMins} min at 38 km/h). High-beam navigation along illuminated main avenues, passing 24/7 manned fuel bunks.`,
+    summary: `Fastest personal transit (${twoWheelerMins} min at 56 km/h). High-beam navigation along illuminated main avenues, passing 24/7 manned fuel bunks.`,
     travelMode: 'two_wheeler',
     vehicleLabel: '2-Wheeler (Bike / Scooter)',
     departureTimeStr: formatMinutesToTime(departureMin),
@@ -456,7 +468,7 @@ export function executeFAROS(state: DisruptionState): FAROSDecisionOutput {
   // CANDIDATE 5: 4-Wheeler (Car / Cab / Enclosed Auto)
   // Protected Ring Road Expressway Corridor
   // -------------------------------------------------------------
-  const fourWheelerSpeedKmh = 42; // 42 km/h smooth arterial flow
+  const fourWheelerSpeedKmh = 52; // 52 km/h smooth arterial flow along Wardha Road & Ring Road
   const fourWheelerMins = Math.max(4, Math.round((roadMeters / 1000) / fourWheelerSpeedKmh * 60));
   const fourWheelerArrivalMin = departureMin + fourWheelerMins;
   const fourWheelerFeasible = isDeadlineSatisfied(fourWheelerArrivalMin, deadlineMin);
@@ -467,7 +479,7 @@ export function executeFAROS(state: DisruptionState): FAROSDecisionOutput {
     id: "plan_four_wheeler",
     name: `4-Wheeler Express to ${destName.split(' (')[0]}`,
     badge: fourWheelerFeasible ? "RECOMMENDED" : "REJECTED_DEADLINE_BREACH",
-    summary: `Enclosed vehicular transit (${fourWheelerMins} min at 42 km/h) via 4-lane Ring Road & Wardha Road corridor. Full weather and night protection.`,
+    summary: `Enclosed vehicular transit (${fourWheelerMins} min at 52 km/h) via 4-lane Ring Road & Wardha Road corridor. Full weather and night protection.`,
     travelMode: 'four_wheeler',
     vehicleLabel: '4-Wheeler (Car / Cab)',
     departureTimeStr: formatMinutesToTime(departureMin),

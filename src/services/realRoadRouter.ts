@@ -253,10 +253,16 @@ export async function fetchRealRoadRoute(
           location: s.maneuver?.location ? [s.maneuver.location[1], s.maneuver.location[0]] : undefined
         }));
 
+        const rawMins = route.duration / 60;
+        let accurateMins = Math.max(1, Math.round(rawMins));
+        if (mode === 'two_wheeler') {
+          accurateMins = Math.max(2, Math.round(rawMins * 0.95)); // agile bike filtering
+        }
+
         const result: RealRoadRouteResult = {
           coordinates: rawCoords,
           distanceMeters: Math.round(route.distance),
-          durationMinutes: Math.max(1, Math.round(route.duration / 60)),
+          durationMinutes: accurateMins,
           durationSeconds: Math.round(route.duration),
           steps: formattedSteps,
           source: 'osrm_live'
@@ -275,7 +281,8 @@ export async function fetchRealRoadRoute(
   const spineCoords = generateNagpurArterialCorridor(start, end);
   const directM = haversineMeters(start, end);
   const roadM = Math.round(directM * 1.25);
-  const estMins = Math.max(3, Math.round((roadM / 1000) / (mode === 'walking' ? 4.5 : 36) * 60));
+  const highwaySpeedKmh = mode === 'walking' ? 4.2 : mode === 'two_wheeler' ? 58 : 54;
+  const estMins = Math.max(2, Math.round((roadM / 1000) / highwaySpeedKmh * 60));
 
   const fallbackResult: RealRoadRouteResult = {
     coordinates: spineCoords,

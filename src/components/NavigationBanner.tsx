@@ -76,7 +76,11 @@ export const NavigationBanner: React.FC<NavigationBannerProps> = ({
           <LifeBuoy className="w-4 h-4 text-[#34C759] shrink-0 animate-spin" />
           <div>
             <span className="text-[10px] uppercase font-bold text-white/60 block">Nearest Night Sanctuary:</span>
-            <span className="font-semibold text-white">Apollo 24/7 Pharmacy (280m walk)</span>
+            <span className="font-semibold text-white">
+              {activePlan.safeHavensEnRoute?.[0]?.name 
+                ? `${activePlan.safeHavensEnRoute[0].name.split(' (')[0]} (${activePlan.maxSafeHavenDistanceMeters <= 150 ? '< 2 min walk' : `${activePlan.maxSafeHavenDistanceMeters}m walk`})`
+                : 'Apollo 24/7 Pharmacy (280m walk)'}
+            </span>
           </div>
         </div>
 
