@@ -16,8 +16,8 @@ import { RoutePlan } from '../engine/faros_router';
 interface MapViewProps {
   originCoords: [number, number];
   originName: string;
-  destCoords: [number, number];
-  destName: string;
+  destCoords?: [number, number] | null;
+  destName?: string;
   selectedPlan: RoutePlan | null;
   backupPlan: RoutePlan | null;
   isBusCancelled: boolean;
@@ -204,44 +204,48 @@ export const MapView: React.FC<MapViewProps> = ({
     originMarker.addTo(group);
 
     // 5. Destination Marker (Flag)
-    const destIcon = L.divIcon({
-      className: 'custom-dest-pin',
-      html: `
-        <div style="
-          width: 26px; height: 26px; 
-          border-radius: 50%; 
-          background: #34C759; 
-          border: 2.5px solid #FFFFFF; 
-          box-shadow: 0 0 14px rgba(52, 199, 89, 0.9);
-          display: flex; align-items: center; justify-content: center;
-          color: white; font-weight: bold; font-size: 12px;
-        ">
-          ★
-        </div>
-      `,
-      iconSize: [26, 26],
-      iconAnchor: [13, 13]
-    });
+    if (destCoords && destName) {
+      const destIcon = L.divIcon({
+        className: 'custom-dest-pin',
+        html: `
+          <div style="
+            width: 26px; height: 26px; 
+            border-radius: 50%; 
+            background: #34C759; 
+            border: 2.5px solid #FFFFFF; 
+            box-shadow: 0 0 14px rgba(52, 199, 89, 0.9);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: bold; font-size: 12px;
+          ">
+            ★
+          </div>
+        `,
+        iconSize: [26, 26],
+        iconAnchor: [13, 13]
+      });
 
-    const destMarker = L.marker(destCoords, { icon: destIcon });
-    destMarker.bindTooltip(`<b>Destination</b>: ${destName}`, { direction: 'top', permanent: false });
-    destMarker.addTo(group);
+      const destMarker = L.marker(destCoords, { icon: destIcon });
+      destMarker.bindTooltip(`<b>Destination</b>: ${destName}`, { direction: 'top', permanent: false });
+      destMarker.addTo(group);
+    }
 
     // 6. Smoothly auto-fit bounds, keeping the entire route and safe havens visible
-    const allPoints: [number, number][] = [originCoords, destCoords];
-    if (selectedPlan) {
+    if (destCoords && destName && selectedPlan) {
+      const allPoints: [number, number][] = [originCoords, destCoords];
       selectedPlan.segments.forEach(s => allPoints.push(...s.coordinates));
-    }
-    const bounds = L.latLngBounds(allPoints);
-    if (isNavigating) {
-      map.flyToBounds(bounds, {
-        padding: [80, 80],
-        maxZoom: 15,
-        duration: 1.6,
-        easeLinearity: 0.25
-      });
+      const bounds = L.latLngBounds(allPoints);
+      if (isNavigating) {
+        map.flyToBounds(bounds, {
+          padding: [80, 80],
+          maxZoom: 15,
+          duration: 1.6,
+          easeLinearity: 0.25
+        });
+      } else {
+        map.fitBounds(bounds, { padding: [65, 65], maxZoom: 15 });
+      }
     } else {
-      map.fitBounds(bounds, { padding: [65, 65], maxZoom: 15 });
+      map.setView(originCoords, 14, { animate: true });
     }
 
   }, [originCoords, originName, destCoords, destName, selectedPlan, backupPlan, isFlooded, isBusCancelled, selectedHaven, isNavigating]);
@@ -250,12 +254,14 @@ export const MapView: React.FC<MapViewProps> = ({
   const handleZoomOut = () => mapInstanceRef.current?.zoomOut();
   const handleRecenter = () => {
     if (mapInstanceRef.current) {
-      const allPoints: [number, number][] = [originCoords, destCoords];
-      if (selectedPlan) {
+      if (destCoords && destName && selectedPlan) {
+        const allPoints: [number, number][] = [originCoords, destCoords];
         selectedPlan.segments.forEach(s => allPoints.push(...s.coordinates));
+        const bounds = L.latLngBounds(allPoints);
+        mapInstanceRef.current.flyToBounds(bounds, { padding: [75, 75], maxZoom: 15, duration: 1.2 });
+      } else {
+        mapInstanceRef.current.setView(originCoords, 15, { animate: true });
       }
-      const bounds = L.latLngBounds(allPoints);
-      mapInstanceRef.current.flyToBounds(bounds, { padding: [75, 75], maxZoom: 15, duration: 1.2 });
     }
   };
   const handleFocusUser = () => {
@@ -294,13 +300,23 @@ export const MapView: React.FC<MapViewProps> = ({
           ) : (
             <Navigation className="w-3.5 h-3.5 text-[#007AFF]" />
           )}
-          <span>
-            {isNavigating
-              ? `${selectedPlan?.travelMode === 'two_wheeler' ? '🛵 2-Wheeler' : selectedPlan?.travelMode === 'four_wheeler' ? '🚗 4-Wheeler' : '🚶 Walking'} Active`
-              : `${selectedPlan?.travelMode === 'two_wheeler' ? '🛵 2-Wheeler' : selectedPlan?.travelMode === 'four_wheeler' ? '🚗 4-Wheeler' : '🚶 Walking'} Route`}
-          </span>
-          <span className="w-1 h-1 rounded-full bg-white/40" />
-          <span className="text-white/80">{destName.split(' (')[0]}</span>
+          {destName ? (
+            <>
+              <span>
+                {isNavigating
+                  ? `${selectedPlan?.travelMode === 'two_wheeler' ? '🛵 2-Wheeler' : selectedPlan?.travelMode === 'four_wheeler' ? '🚗 4-Wheeler' : '🚶 Walking'} Active`
+                  : `${selectedPlan?.travelMode === 'two_wheeler' ? '🛵 2-Wheeler' : selectedPlan?.travelMode === 'four_wheeler' ? '🚗 4-Wheeler' : '🚶 Walking'} Route`}
+              </span>
+              <span className="w-1 h-1 rounded-full bg-white/40" />
+              <span className="text-white/80">{destName.split(' (')[0]}</span>
+            </>
+          ) : (
+            <>
+              <span className="text-[#34C759]">● Departure Set</span>
+              <span className="w-1 h-1 rounded-full bg-white/40" />
+              <span className="text-white/60">Choose destination above</span>
+            </>
+          )}
         </div>
 
         {/* Navigation Indicator & End Trip Button */}

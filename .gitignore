@@ -29,3 +29,6 @@ pnpm-debug.log*
 # Temporary / Scratch
 .chrome_tmp/
 IIIT_NAG_NightShift.zip
+crisis/
+bin/
+

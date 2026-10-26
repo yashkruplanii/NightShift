@@ -9,7 +9,8 @@ import {
   Building2,
   Train,
   X,
-  Loader2
+  Loader2,
+  History
 } from 'lucide-react';
 import { NAGPUR_SEARCH_DIRECTORY, SearchableLocation } from '../data/nagpur_ground_truth';
 
@@ -17,7 +18,7 @@ interface LocationInputPanelProps {
   currentOriginName: string;
   currentOriginCoords: [number, number];
   currentDestName: string;
-  currentDestCoords: [number, number];
+  currentDestCoords?: [number, number] | null;
   onSelectOrigin: (name: string, coords: [number, number]) => void;
   onSelectDestination: (name: string, coords: [number, number]) => void;
   departureTime?: string;
@@ -47,6 +48,39 @@ export const LocationInputPanel: React.FC<LocationInputPanelProps> = ({
   const [destSuggestions, setDestSuggestions] = useState<SearchableLocation[]>([]);
   const [originSuggestions, setOriginSuggestions] = useState<SearchableLocation[]>([]);
   const [isLoadingNominatim, setIsLoadingNominatim] = useState<boolean>(false);
+
+  // Persistent Recent Searches using localStorage (e.g. Sadar, Jaripatka, Sitabuldi)
+  const [recentSearches, setRecentSearches] = useState<{ name: string; coords: [number, number] }[]>(() => {
+    try {
+      const saved = localStorage.getItem('nightshift_recent_destinations');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return [
+      { name: "Sadar", coords: [21.1610, 79.0820] as [number, number] },
+      { name: "Sitabuldi Interchange", coords: [21.1458, 79.0882] as [number, number] },
+      { name: "Dharampeth", coords: [21.1415, 79.0640] as [number, number] },
+      { name: "Manewada Ring Road", coords: [21.1020, 79.1050] as [number, number] },
+      { name: "Medical Square", coords: [21.1278, 79.0970] as [number, number] },
+      { name: "IIIT Nagpur Campus", coords: [20.9472, 79.0255] as [number, number] },
+      { name: "VNIT Nagpur", coords: [21.1255, 79.0515] as [number, number] }
+    ];
+  });
+
+  const updateRecentSearches = (name: string, coords: [number, number]) => {
+    if (!name || !name.trim()) return;
+    const cleanName = name.trim();
+    setRecentSearches(prev => {
+      const filtered = prev.filter(item => item.name.toLowerCase() !== cleanName.toLowerCase());
+      const updated = [{ name: cleanName, coords }, ...filtered].slice(0, 8);
+      try {
+        localStorage.setItem('nightshift_recent_destinations', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+  };
   
   const destDropdownRef = useRef<HTMLDivElement>(null);
   const originDropdownRef = useRef<HTMLDivElement>(null);
@@ -213,6 +247,7 @@ export const LocationInputPanel: React.FC<LocationInputPanelProps> = ({
   };
 
   const handleSelectDestItem = (loc: SearchableLocation) => {
+    updateRecentSearches(loc.name, loc.coords);
     onSelectDestination(loc.name, loc.coords);
     setDestQuery('');
     setIsSearchingDest(false);
@@ -221,6 +256,7 @@ export const LocationInputPanel: React.FC<LocationInputPanelProps> = ({
   const handleSelectCustomDest = (query: string) => {
     if (!query.trim()) return;
     const coords = resolveCustomCoords(query);
+    updateRecentSearches(query.trim(), coords);
     onSelectDestination(query.trim(), coords);
     setDestQuery('');
     setIsSearchingDest(false);
@@ -389,7 +425,7 @@ export const LocationInputPanel: React.FC<LocationInputPanelProps> = ({
             <Search className="w-4 h-4 text-[#34C759] shrink-0" />
             <input
               type="text"
-              placeholder={`Search: ${currentDestName}`}
+              placeholder={currentDestName ? `Search: ${currentDestName}` : "Search: Where are you headed?"}
               value={destQuery}
               onChange={(e) => handleDestInputChange(e.target.value)}
               onKeyDown={(e) => {
@@ -460,22 +496,30 @@ export const LocationInputPanel: React.FC<LocationInputPanelProps> = ({
         </div>
       </div>
 
-      {/* Popular Destination Quick Chips */}
+      {/* Recent Searches Bar */}
       <div className="mt-3 flex items-center flex-wrap gap-1.5">
-        <span className="text-[10px] text-white/40 mr-1">Quick Select:</span>
-        {NAGPUR_SEARCH_DIRECTORY.slice(0, 8).map((loc) => {
-          const isSelected = loc.name === currentDestName;
+        <span className="text-[10px] text-white/50 font-medium flex items-center gap-1 mr-1">
+          <History className="w-3 h-3 text-[#007AFF]" />
+          <span>Recent Searches:</span>
+        </span>
+        {recentSearches.map((item, idx) => {
+          const isSelected = item.name.toLowerCase() === currentDestName.toLowerCase();
           return (
             <button
-              key={loc.id}
-              onClick={() => onSelectDestination(loc.name, loc.coords)}
-              className={`px-2.5 py-1 rounded-full text-[11px] transition-all cursor-pointer ${
+              key={`${item.name}-${idx}`}
+              onClick={() => {
+                updateRecentSearches(item.name, item.coords);
+                onSelectDestination(item.name, item.coords);
+                setDestQuery('');
+              }}
+              className={`px-2.5 py-1 rounded-full text-[11px] transition-all cursor-pointer flex items-center gap-1 active:scale-95 ${
                 isSelected
-                  ? 'bg-[#34C759]/20 text-[#34C759] border border-[#34C759]/40 font-semibold shadow-sm'
-                  : 'bg-white/[0.04] text-white/70 hover:bg-white/[0.08] border border-white/[0.06]'
+                  ? 'bg-[#34C759]/25 text-[#34C759] border border-[#34C759]/50 font-semibold shadow-sm'
+                  : 'bg-white/[0.04] text-white/70 hover:bg-white/[0.08] border border-white/[0.06] hover:text-white'
               }`}
             >
-              {loc.name.split(' (')[0]}
+              <MapPin className="w-2.5 h-2.5 text-white/40" />
+              <span>{item.name.split(' (')[0]}</span>
             </button>
           );
         })}

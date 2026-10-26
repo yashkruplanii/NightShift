@@ -18,11 +18,11 @@ export const App: React.FC = () => {
   // Splash Screen Intro State (Plays on initial launch, replayable on demand)
   const [showSplash, setShowSplash] = useState<boolean>(true);
 
-  // Origin & Destination State
-  const [originName, setOriginName] = useState<string>("GMCH Trauma Centre (Nagpur)");
-  const [originCoords, setOriginCoords] = useState<[number, number]>([21.1278, 79.0970]); // default GMCH
-  const [destName, setDestName] = useState<string>("Manewada Ring Road Junction");
-  const [destCoords, setDestCoords] = useState<[number, number]>([21.1020, 79.1050]);
+  // Origin & Destination State (Origin defaults to live GPS, Destination starts empty)
+  const [originName, setOriginName] = useState<string>("Current Location (Detecting GPS...)");
+  const [originCoords, setOriginCoords] = useState<[number, number]>([21.1458, 79.0882]); // Central Nagpur Hub
+  const [destName, setDestName] = useState<string>("");
+  const [destCoords, setDestCoords] = useState<[number, number] | null>(null);
   
   // Vehicle / Travel Mode (2-Wheeler, 4-Wheeler, Transit, Walking like Google/Apple Maps)
   const [travelMode, setTravelMode] = useState<TravelMode>('two_wheeler');
@@ -139,19 +139,32 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  // Compute FAROS decisions dynamically based on real user coordinates!
-  const farosResult = executeFAROS({
-    busCancelled: isBusCancelled,
-    networkSevered: isNetworkSevered,
-    underpassFlooded: isUnderpassFlooded,
-    manualClockMinutes: activeClockMinutes,
-    originCoords,
-    originName,
-    destCoords,
-    destName,
-    deadlineTimeStr,
-    travelMode
-  });
+  // Compute FAROS decisions dynamically based on real user coordinates when destination is selected!
+  const farosResult = (destCoords && destName) 
+    ? executeFAROS({
+        busCancelled: isBusCancelled,
+        networkSevered: isNetworkSevered,
+        underpassFlooded: isUnderpassFlooded,
+        manualClockMinutes: activeClockMinutes,
+        originCoords,
+        originName,
+        destCoords,
+        destName,
+        deadlineTimeStr,
+        travelMode
+      })
+    : {
+        recommendedPlan: null,
+        backupPlan: null,
+        candidatePlans: [],
+        modeSummaries: [],
+        activeDisruptions: [],
+        epistemicOverallStatus: 'KNOWN' as const,
+        currentTimeStr: activeDepartureTimeStr,
+        deadlineTimeStr,
+        workerName: 'Verified Commuter',
+        summary: 'Select destination to compute adversarial safe corridors'
+      };
 
   // Keep selected plan valid when mode, destination, or disruptions change
   useEffect(() => {
@@ -226,7 +239,10 @@ export const App: React.FC = () => {
 
       {/* Apple Keynote Style Logo Intro Reveal (Plays on launch / replay) */}
       {showSplash && (
-        <LogoIntroSplash onComplete={() => setShowSplash(false)} />
+        <LogoIntroSplash onComplete={() => {
+          setShowSplash(false);
+          setShowLocationModal(true);
+        }} />
       )}
 
       {/* Header Bar (Styled with Transcope Navigation Bar Aesthetic) */}
@@ -375,9 +391,12 @@ export const App: React.FC = () => {
 
       {/* Initial Location Permission Sheet */}
       <LocationPermissionModal
-        isOpen={showLocationModal && gpsStatus === 'prompt'}
+        isOpen={!showSplash && showLocationModal && gpsStatus !== 'granted'}
         onRequestPermission={requestLocation}
-        onDismiss={() => setShowLocationModal(false)}
+        onDismiss={() => {
+          setShowLocationModal(false);
+          setOriginName("Current Location (Central Nagpur Hub)");
+        }}
       />
 
       {/* Verification Sheet Modal */}

@@ -59,7 +59,21 @@ export const RouteComparisonCard: React.FC<RouteComparisonCardProps> = ({
     recommendedPlan || 
     backupPlan;
 
-  if (!activePlan) return null;
+  if (!activePlan) {
+    return (
+      <div className="ios-glass-card rounded-3xl p-6 text-center border border-white/10 shadow-xl flex flex-col items-center justify-center min-h-[170px] animate-fadeIn">
+        <div className="w-12 h-12 rounded-2xl bg-[#007AFF]/20 text-[#007AFF] flex items-center justify-center mb-3 shadow-[0_0_20px_rgba(0,122,255,0.25)]">
+          <Navigation className="w-6 h-6 animate-pulse" />
+        </div>
+        <h3 className="text-sm font-bold text-white mb-1 tracking-wide">
+          Where are you headed tonight?
+        </h3>
+        <p className="text-xs text-white/60 max-w-sm leading-relaxed">
+          Select a destination from the <span className="text-[#34C759] font-medium">Recent Searches</span> above or type any address to generate verified lit routes and safe 24/7 sanctuaries.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="ios-glass-card rounded-3xl p-5 sm:p-6 transition-all duration-300">
