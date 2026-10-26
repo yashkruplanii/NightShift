@@ -287,7 +287,7 @@ export const MapView: React.FC<MapViewProps> = ({
   return (
     <div 
       id="nightshift-live-map"
-      className={`relative isolate z-0 w-full h-[500px] sm:h-[580px] lg:h-[660px] rounded-3xl overflow-hidden ios-glass-card flex flex-col transition-all duration-700 ease-out ${
+      className={`relative isolate z-0 w-full h-[350px] sm:h-[480px] lg:h-[660px] rounded-3xl overflow-hidden ios-glass-card flex flex-col transition-all duration-700 ease-out ${
         isNavigating 
           ? 'map-navigating-popup ring-2 sm:ring-4 ring-[#007AFF] shadow-[0_25px_90px_rgba(0,122,255,0.45)]' 
           : 'border border-white/10 shadow-2xl'

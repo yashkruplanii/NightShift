@@ -358,7 +358,7 @@ export const LocationInputPanel: React.FC<LocationInputPanelProps> = ({
               onFocus={() => {
                 if (originQuery.trim()) setIsSearchingOrigin(true);
               }}
-              className="bg-transparent text-xs text-white placeholder-white/80 font-medium focus:outline-none w-full"
+              className="bg-transparent text-base sm:text-xs text-white placeholder-white/80 font-medium focus:outline-none w-full"
             />
             {originQuery && (
               <button onClick={() => setOriginQuery('')} className="text-white/40 hover:text-white">
@@ -440,7 +440,7 @@ export const LocationInputPanel: React.FC<LocationInputPanelProps> = ({
               onFocus={() => {
                 if (destQuery.trim()) setIsSearchingDest(true);
               }}
-              className="bg-transparent text-xs text-white placeholder-white/80 font-medium focus:outline-none w-full"
+              className="bg-transparent text-base sm:text-xs text-white placeholder-white/80 font-medium focus:outline-none w-full"
             />
             {destQuery && (
               <button onClick={() => setDestQuery('')} className="text-white/40 hover:text-white">

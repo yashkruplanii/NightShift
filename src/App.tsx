@@ -301,6 +301,50 @@ export const App: React.FC = () => {
     }, 150);
   };
 
+  // End trip navigation and reset to initial launch state (current location as departure, empty destination)
+  const handleEndNavigation = () => {
+    setIsNavigating(false);
+    setDestName("");
+    setDestCoords(null);
+    setRoadGeometry(null);
+
+    // Refresh live GPS departure location
+    requestLocation();
+
+    // Trip completion chime
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtx) {
+        const ctx = new AudioCtx();
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(659.25, now); // E5
+        osc.frequency.exponentialRampToValueAtTime(523.25, now + 0.15); // C5
+        gain.gain.setValueAtTime(0.06, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.25);
+      }
+    } catch (e) {}
+
+    // Tactile haptic on mobile
+    if ('vibrate' in navigator) {
+      try {
+        navigator.vibrate([30, 50, 30]);
+      } catch (e) {}
+    }
+
+    setGpsToastMessage("✓ Trip ended. Ready for your next journey!");
+    setTimeout(() => setGpsToastMessage(null), 3500);
+
+    // Scroll smoothly back to top destination search
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   // Handle temporal playback
   useEffect(() => {
     let timer: any;
@@ -364,7 +408,7 @@ export const App: React.FC = () => {
         <NavigationBanner
           activePlan={activePlan}
           destName={destName}
-          onEndNavigation={() => setIsNavigating(false)}
+          onEndNavigation={handleEndNavigation}
         />
       )}
 
@@ -386,10 +430,10 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {/* Main Full-Width Responsive 2-Column Layout */}
-      <main className="flex-1 w-full max-w-[1800px] mx-auto px-3 sm:px-6 lg:px-8 py-3 grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        {/* Left Column: Trip Setup, Route Directions & Sanctuary Info (5 cols) */}
-        <section className="lg:col-span-5 flex flex-col gap-4">
+      {/* Main Full-Width Responsive Layout (Optimized for Mobile & Desktop) */}
+      <main className="flex-1 w-full max-w-[1800px] mx-auto px-3 sm:px-6 lg:px-8 py-3 grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5 items-start">
+        {/* Item 1: Search & Location (Order 1 on mobile, Left Col Row 1 on desktop) */}
+        <div className="order-1 lg:order-none lg:col-span-5 lg:col-start-1 lg:row-start-1 flex flex-col gap-3">
           {/* Real-World Live Clock Indicator */}
           <div className="p-2.5 rounded-2xl bg-[#17181B] border border-white/[0.08] flex items-center justify-between gap-2 shadow-[0_8px_30px_rgba(0,0,0,0.5)]">
             <span className="text-xs text-zinc-400 font-medium flex items-center gap-1.5 pl-1">
@@ -420,53 +464,10 @@ export const App: React.FC = () => {
             isDetectingGps={isDetectingGps}
             gpsStatus={gpsStatus}
           />
+        </div>
 
-          {/* Route Comparison Card with [ Start Navigation ] Button & 4-Vehicle Mode Bar */}
-          <RouteComparisonCard
-            recommendedPlan={farosResult.recommendedPlan}
-            backupPlan={farosResult.backupPlan}
-            modeSummaries={farosResult.modeSummaries}
-            selectedMode={travelMode}
-            onSelectMode={(mode) => setTravelMode(mode)}
-            onSelectPlan={(plan) => setSelectedPlanId(plan.id)}
-            selectedPlanId={selectedPlanId}
-            onStartNavigation={handleStartNavigation}
-            onEndNavigation={() => setIsNavigating(false)}
-            isNavigating={isNavigating}
-          />
-
-          {/* Place Card Detail (Safe Haven) */}
-          {selectedHaven && (
-            <EvidenceInspectorDrawer
-              haven={selectedHaven}
-              onClose={() => setSelectedHaven(null)}
-              onGuideToHaven={(haven) => {
-                setDestName(haven.name);
-                setDestCoords([haven.lat, haven.lon]);
-                setSelectedHaven(null);
-                handleStartNavigation();
-              }}
-            />
-          )}
-        </section>
-
-        {/* Right Column: Leaflet Map, Tactical Safety Suite & Live Navigation (7 cols) */}
-        <section className="lg:col-span-7 flex flex-col gap-4">
-          {/* Tactical NightShield Suite */}
-          <NightShieldSuite
-            isRadarActive={isRadarActive}
-            onToggleRadar={() => setIsRadarActive(!isRadarActive)}
-            nearestHaven={farosResult.recommendedPlan?.safeHavensEnRoute?.[0] || NAGPUR_SAFE_HAVENS[0]}
-            originCoords={originCoords}
-            destName={destName}
-            onEmergencyEvacuate={(haven) => {
-              setDestName(haven.name);
-              setDestCoords([haven.lat, haven.lon]);
-              handleStartNavigation();
-            }}
-          />
-
-          {/* Real Interactive Leaflet Tile Map */}
+        {/* Item 2: Real Interactive Leaflet Tile Map (Order 2 on mobile directly under Search!, Right Col Row 1-2 on desktop) */}
+        <div className="order-2 lg:order-none lg:col-span-7 lg:col-start-6 lg:row-start-1 lg:row-span-2">
           <MapView
             originCoords={originCoords}
             originName={originName}
@@ -479,10 +480,58 @@ export const App: React.FC = () => {
             selectedHaven={selectedHaven}
             onSelectHaven={(haven) => setSelectedHaven(haven)}
             isNavigating={isNavigating}
-            onEndNavigation={() => setIsNavigating(false)}
+            onEndNavigation={handleEndNavigation}
             isRadarActive={isRadarActive}
           />
-        </section>
+        </div>
+
+        {/* Item 3: Route Comparison Card with Mode Selector & Start Navigation Button (Order 3 on mobile directly below Map!, Left Col Row 2 on desktop) */}
+        <div className="order-3 lg:order-none lg:col-span-5 lg:col-start-1 lg:row-start-2">
+          <RouteComparisonCard
+            recommendedPlan={farosResult.recommendedPlan}
+            backupPlan={farosResult.backupPlan}
+            modeSummaries={farosResult.modeSummaries}
+            selectedMode={travelMode}
+            onSelectMode={(mode) => setTravelMode(mode)}
+            onSelectPlan={(plan) => setSelectedPlanId(plan.id)}
+            selectedPlanId={selectedPlanId}
+            onStartNavigation={handleStartNavigation}
+            onEndNavigation={handleEndNavigation}
+            isNavigating={isNavigating}
+          />
+        </div>
+
+        {/* Item 4: Tactical NightShield Suite (Order 4 on mobile, Right Col Row 3 on desktop) */}
+        <div className="order-4 lg:order-none lg:col-span-7 lg:col-start-6 lg:row-start-3">
+          <NightShieldSuite
+            isRadarActive={isRadarActive}
+            onToggleRadar={() => setIsRadarActive(!isRadarActive)}
+            nearestHaven={farosResult.recommendedPlan?.safeHavensEnRoute?.[0] || NAGPUR_SAFE_HAVENS[0]}
+            originCoords={originCoords}
+            destName={destName}
+            onEmergencyEvacuate={(haven) => {
+              setDestName(haven.name);
+              setDestCoords([haven.lat, haven.lon]);
+              handleStartNavigation();
+            }}
+          />
+        </div>
+
+        {/* Item 5: Safe Haven Detail Drawer (Order 5 on mobile, Left Col Row 3 on desktop) */}
+        {selectedHaven && (
+          <div className="order-5 lg:order-none lg:col-span-5 lg:col-start-1 lg:row-start-3">
+            <EvidenceInspectorDrawer
+              haven={selectedHaven}
+              onClose={() => setSelectedHaven(null)}
+              onGuideToHaven={(haven) => {
+                setDestName(haven.name);
+                setDestCoords([haven.lat, haven.lon]);
+                setSelectedHaven(null);
+                handleStartNavigation();
+              }}
+            />
+          </div>
+        )}
       </main>
 
       {/* Initial Location Permission Sheet */}

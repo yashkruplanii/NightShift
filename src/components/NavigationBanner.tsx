@@ -81,7 +81,7 @@ export const NavigationBanner: React.FC<NavigationBannerProps> = ({
         </div>
 
         {/* Right: ETA & End Navigation Button */}
-        <div className="flex items-center gap-4 shrink-0">
+        <div className="flex items-center justify-between md:justify-end gap-4 w-full md:w-auto shrink-0 pt-2 md:pt-0 border-t border-white/10 md:border-t-0">
           <div className="text-right">
             <div className="text-2xl font-extrabold text-white tracking-tight leading-none">
               {activePlan.arrivalTimeStr}
